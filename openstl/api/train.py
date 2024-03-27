@@ -343,6 +343,7 @@ class BaseExperiment(object):
         if not check_dir(self.path):  # exit training when work_dir is removed
             assert False and "Exit training because work_dir is removed"
         best_model_path = osp.join(self.path, 'checkpoint.pth')
+        time.sleep(1)  # wait for some hooks like loggers to finish
         self._load_from_state_dict(torch.load(best_model_path))
         time.sleep(1)  # wait for some hooks like loggers to finish
         self.call_hook('after_run')
@@ -374,6 +375,14 @@ class BaseExperiment(object):
             channel_names = self.test_loader.dataset.data_name if 'mv' in self.args.dataname else None
         else:
             metric_list, spatial_norm, channel_names = self.args.metrics, False, None
+
+        if 'hmv' in self.args.dataname:
+            # calculate metrics on all channels
+            channel_names_vertical_levels = []
+            for i in channel_names[:8]:
+                for level in [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]:
+                    channel_names_vertical_levels.append(i+'_'+str(level))
+            channel_names = channel_names_vertical_levels + channel_names[8:]
         eval_res, eval_log = metric(results['preds'], results['trues'],
                                     self.test_loader.dataset.mean, self.test_loader.dataset.std,
                                     metrics=metric_list, channel_names=channel_names, spatial_norm=spatial_norm)
@@ -381,12 +390,17 @@ class BaseExperiment(object):
 
         if self._rank == 0:
             print_log(eval_log)
+
             folder_path = osp.join(self.path, 'saved')
             check_dir(folder_path)
             try:
                 print(results.keys())
-                for np_data in results.keys():
-                    np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
+                if 'hmv' in self.args.dataname:
+                    for np_data in ['metrics']:
+                        np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
+                else:
+                    for np_data in results.keys():
+                        np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])
             except:
                 for np_data in ['metrics', 'inputs', 'trues', 'preds']:
                     np.save(osp.join(folder_path, np_data + '.npy'), results[np_data])

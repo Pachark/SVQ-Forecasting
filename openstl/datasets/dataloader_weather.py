@@ -40,27 +40,33 @@ def xyz2latlon(x, y, z):
         lon = np.arctan2(-y, -x)
     return lat, lon
 
-
 data_map = {
-    'g': 'geopotential',
-    'z': 'geopotential_500',
-    't': 'temperature',
-    't850': 'temperature_850',
-    'tp': 'total_precipitation',
-    't2m': '2m_temperature',
-    'r': 'relative_humidity',
     'u10': '10m_u_component_of_wind',
-    'u': 'u_component_of_wind',
     'v10': '10m_v_component_of_wind',
-    'v': 'v_component_of_wind',
+    't2m': '2m_temperature',
+    'z': 'geopotential',
+    'pv': 'potential_vorticity',
+    'r': 'relative_humidity',
+    'q': 'specific_humidity',
+    't': 'temperature',
+    'tisr': 'toa_incident_solar_radiation',
     'tcc': 'total_cloud_cover',
+    'tp': 'total_precipitation',
+    'u': 'u_component_of_wind',
+    'v': 'v_component_of_wind',
+    'vo': 'vorticity'
 }
+
+# 6 variables, These datasets only contain single level
+single_level_list = ['u10', 'v10', 't2m', 'tisr', 'tcc', 'tp']
+# 8 variables
+multi_level_list = ['z', 'pv', 'r', 'q', 't', 'u', 'v', 'vo']
 
 mv_data_map = {
     **dict.fromkeys(['mv', 'mv4'], ['r', 't', 'u', 'v']),
-    'mv5': ['g', 'r', 't', 'u', 'v'],
+    'mv5': ['z', 'r', 't', 'u', 'v'],
+    'hmv': multi_level_list + single_level_list,
 }
-
 
 class WeatherBenchDataset(Dataset):
     """Wheather Bench Dataset <http://arxiv.org/abs/2002.00469>`_
@@ -126,36 +132,7 @@ class WeatherBenchDataset(Dataset):
 
     def _load_data_xarray(self, data_name, single_variant=True):
         """Loading full data with xarray"""
-        if data_name != 'uv10':
-            print(self.data_root+'/{}/{}*.nc'.format(data_map[data_name], data_map[data_name]))
-
-            try:
-                dataset = xr.open_mfdataset(self.data_root+'/{}/{}*.nc'.format(
-                    data_map[data_name], data_map[data_name]), combine='by_coords')
-            except (AttributeError, ValueError):
-                assert False and 'Please install xarray and its dependency (e.g., netcdf4), ' \
-                                    'pip install xarray==0.19.0,' \
-                                    'pip install netcdf4 h5netcdf dask'
-            except OSError:
-                print("OSError: Invalid path {}/{}/*.nc".format(self.data_root, data_map[data_name]))
-                assert False
-            dataset = dataset.sel(time=slice(*self.training_time))
-            dataset = dataset.isel(time=slice(None, -1, self.step))
-            if self.time is None and single_variant:
-                self.week = dataset['time.week']
-                self.month = dataset['time.month']
-                self.year = dataset['time.year']
-                self.time = np.stack(
-                    [self.week, self.month, self.year], axis=1)
-                lon, lat = np.meshgrid(
-                    (dataset.lon-180) * d2r, dataset.lat*d2r)
-                x, y, z = latlon2xyz(lat, lon)
-                self.V = np.stack([x, y, z]).reshape(3, self.shape[0]*self.shape[1]).T
-            if not single_variant and isinstance(self.level, list):
-                dataset = dataset.sel(level=np.array(self.level))
-            data = dataset.get(data_name).values[:, np.newaxis, :, :]
-
-        elif data_name == 'uv10':
+        if data_name == 'uv10':
             input_datasets = []
             for key in ['u10', 'v10']:
                 try:
@@ -182,17 +159,45 @@ class WeatherBenchDataset(Dataset):
                     self.V = np.stack([x, y, z]).reshape(3, self.shape[0]*self.shape[1]).T
                 input_datasets.append(dataset.get(key).values[:, np.newaxis, :, :])
             data = np.concatenate(input_datasets, axis=1)
+        else:
+            print(self.data_root+'/{}/{}*.nc'.format(data_map[data_name], data_map[data_name]))
+            try:
+                dataset = xr.open_mfdataset(self.data_root+'/{}/{}*.nc'.format(
+                    data_map[data_name], data_map[data_name]), combine='by_coords')
+            except (AttributeError, ValueError):
+                assert False and 'Please install xarray and its dependency (e.g., netcdf4), ' \
+                                    'pip install xarray==0.19.0,' \
+                                    'pip install netcdf4 h5netcdf dask'
+            except OSError:
+                print("OSError: Invalid path {}/{}/*.nc".format(self.data_root, data_map[data_name]))
+                assert False
+            dataset = dataset.sel(time=slice(*self.training_time))
+            dataset = dataset.isel(time=slice(None, -1, self.step))
+            if self.time is None and single_variant:
+                self.week = dataset['time.week']
+                self.month = dataset['time.month']
+                self.year = dataset['time.year']
+                self.time = np.stack(
+                    [self.week, self.month, self.year], axis=1)
+                lon, lat = np.meshgrid(
+                    (dataset.lon-180) * d2r, dataset.lat*d2r)
+                x, y, z = latlon2xyz(lat, lon)
+                self.V = np.stack([x, y, z]).reshape(3, self.shape[0]*self.shape[1]).T
+            if not single_variant and isinstance(self.level, list) and data_name not in single_level_list:
+                dataset = dataset.sel(level=np.array(self.level))
 
+            data = dataset.get(data_name).values[:, np.newaxis, :, :]
         # uv10
         if len(data.shape) == 5:
             data = data.squeeze(1)
         # humidity
         if data_name == 'r' and single_variant:
             data = data[:, -1:, ...]
+        if data_name in single_level_list:
+            data = data[:, -1:, ...]
         # multi-variant level
         if not single_variant and isinstance(self.level, int):
             data = data[:, -self.level:, ...]
-
         mean = data.mean(axis=(0, 2, 3)).reshape(1, data.shape[1], 1, 1)
         std = data.std(axis=(0, 2, 3)).reshape(1, data.shape[1], 1, 1)
         # mean = dataset.mean('time').mean(('lat', 'lon')).compute()[data_name].values
