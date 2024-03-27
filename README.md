@@ -66,6 +66,14 @@ python tools/train.py --overwrite -d weather_mv_4_4_s6_5_625 --res_dir work_dirs
 python tools/train.py --overwrite -d weather_mv_4_4_s6_5_625 --res_dir work_dirs/weather_mv_4_s6_5_625  -c configs/weather/mv_4_s6_5_625/SimVPVQ_MogaNet_frozen.py
 ```
 
+### WeatherBench-HMV
+
+```
+PORT=29001 CUDA_VISIBLE_DEVICES=0,1 bash tools/dist_train.sh configs/weather/hmv_4_s6_5_625/SimVPVQ_gSTA_learnable.py 2 -d weather_hmv_4_4_s6_5_625 --res_dir work_dirs/weather_hmv_4_4_s6_5_625 --ex_name SimVPVQ_gSTA_learnable
+PORT=29001 CUDA_VISIBLE_DEVICES=0,1 bash tools/dist_train.sh configs/weather/hmv_4_s6_5_625/SimVPVQ_gSTA_frozen.py 2 -d weather_hmv_4_4_s6_5_625 --res_dir work_dirs/weather_hmv_4_4_s6_5_625 --ex_name SimVPVQ_gSTA_frozen
+PORT=29001 CUDA_VISIBLE_DEVICES=0,1 bash tools/dist_train.sh configs/weather/hmv_4_s6_5_625/SimVP_gSTA.py 2 -d weather_hmv_4_4_s6_5_625 --res_dir work_dirs/weather_hmv_4_4_s6_5_625 --ex_name SimVP_gSTA
+```
+
 ### KTH
 
 ```
