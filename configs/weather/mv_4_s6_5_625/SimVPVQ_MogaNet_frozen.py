@@ -19,10 +19,10 @@ patience = 10
 loss = 'mae'
 
 # main setting
-post_vq = True
+post_vq = False
 vq_type = 'svq'
 vq_kwargs = {'input_dim': hid_S,
-             'freeze_codebook': False,   
+             'freeze_codebook': True,
              'codebook_size': 10000,   
              'init_method': 'kaiming',
              'nonlinear': True,
