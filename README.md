@@ -2,7 +2,7 @@
 
 ## Introduction
 <p align="center">
-    <img src="./figures_readme/architecture.png" width="720"> <br>
+    <img src="figures_readme/architecture.png" width="720"> <br>
 </p>
 
 Spatio-temporal forecasting is crucial in various fields and relies on a careful balance between identifying subtle patterns and filtering out noise. Although clustering-based vector quantization methods have been successfully applied to various computer vision tasks, surprisingly, they fail to boost the accuracy of spatio-temporal forecasting. In response, we introduce Sparse Soft-Vector Quantization (SVQ), a groundbreaking technique with a strong foundation in theory and practice, proven to surpass traditional vector quantization methods in spatio-temporal forecasting. Compared to other VQ method, SVQ is able to make better trade off between preserving critical details and filtering out noise by exploiting the sparse regression technique. Moreover, we approximate the sparse regression process using a blend of a two-layer MLP and an extensive codebook. This strategy not only substantially cuts down on computational costs but also grants SVQ differentiability and training simplicity, resulting in a notable enhancement of performance. Our empirical studies on five spatio-temporal benchmark datasets demonstrate that SVQ achieves state-of-the-art results. Specifically, on the WeatherBench-S temperature dataset, SVQ improves the top baseline by 7.9\%. In video prediction benchmarks—Human3.6M, KTH, and KittiCaltech—it reduces MAE by an average of 9.4\% and improves image quality by 17.3\% (LPIPS).
